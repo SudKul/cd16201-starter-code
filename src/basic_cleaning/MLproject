@@ -1,0 +1,15 @@
+name: basic_cleaning
+
+entry_points:
+  main:
+    parameters:
+      project_root: {type: string}
+      run_dir: {type: string}
+      input: {type: string, description: Local input CSV inside the project root}
+      output: {type: string, description: New clean CSV inside the run directory}
+      min_price: {type: float, description: Minimum accepted price}
+      max_price: {type: float, description: Maximum accepted price}
+    command: >-
+      python run.py --project_root "{project_root}" --run_dir "{run_dir}"
+      --input "{input}" --output "{output}"
+      --min_price {min_price} --max_price {max_price}
