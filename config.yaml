@@ -1,10 +1,10 @@
 main:
   components_repository: "components"
-  # All the intermediate files will be copied to this directory at the end of the run.
-  # Set this to null if you are running in prod
   project_name: nyc_airbnb
   experiment_name: development
   steps: all
+  source_run: null
+  selection: artifacts/selected_model.json
 etl:
   sample: "sample1.csv"
   min_price: 10 # dollars

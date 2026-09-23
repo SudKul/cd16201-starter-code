@@ -5,7 +5,12 @@ This script trains a Random Forest
 import argparse
 import logging
 import os
-import shutil
+import sys
+from pathlib import Path
+
+os.environ["MLFLOW_DISABLE_TELEMETRY"] = "true"
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import matplotlib.pyplot as plt
 
 import mlflow
@@ -19,7 +24,11 @@ from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder, FunctionTransformer
 
-import wandb
+from components.compare_runs import effective_parameters, load_split
+from components.local_pipeline import (
+    load_artifact, read_json, relative_path, resolve_path,
+    run_output, stage, write_json,
+)
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error
 from sklearn.pipeline import Pipeline, make_pipeline
@@ -38,93 +47,124 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(message)s")
 logger = logging.getLogger()
 
 
+def fit_model(model, X_train, y_train):
+    # YOUR CODE HERE: fit the inference pipeline using the training partition.
+    raise NotImplementedError("Implement fitting in fit_model before training")
+
+
+def export_model(model, model_dir):
+    # YOUR CODE HERE: save the fitted pipeline in MLflow sklearn format at model_dir.
+    raise NotImplementedError("Implement MLflow model export in export_model")
+
+
+def log_validation_mae(mae):
+    # YOUR CODE HERE: record mae in the active MLflow run under the key 'mae'.
+    raise NotImplementedError("Implement validation MAE logging in log_validation_mae")
+
+
+def categorical_preprocessor():
+    # YOUR CODE HERE: impute the most frequent category, then one-hot encode it.
+    raise NotImplementedError("Implement non-ordinal categorical preprocessing")
+
+
+def assemble_pipeline(preprocessor, random_forest):
+    # YOUR CODE HERE: assemble named 'preprocessor' and 'random_forest' steps.
+    raise NotImplementedError("Implement inference pipeline assembly")
+
+
+def configure_tracking(root):
+    """Resolve the local backend explicitly, including when launched by MLflow."""
+    tracking = root / "artifacts" / "mlflow"
+    tracking.mkdir(parents=True, exist_ok=True)
+    mlflow.set_tracking_uri("sqlite:///" + str(tracking / "mlflow.db"))
+    client = mlflow.tracking.MlflowClient()
+    experiment = client.get_experiment_by_name("nyc_airbnb")
+    if experiment is None:
+        experiment_id = client.create_experiment(
+            "nyc_airbnb", artifact_location=(tracking / "artifacts").as_uri()
+        )
+    else:
+        expected_location = (tracking / "artifacts").as_uri()
+        if experiment.artifact_location != expected_location:
+            raise ValueError("MLflow experiment artifact storage must use this project root")
+        experiment_id = experiment.experiment_id
+    return client, experiment_id
+
+
 def go(args):
-
-    run = wandb.init(job_type="train_random_forest")
-    run.config.update(args)
-
-    # Get the Random Forest configuration and update W&B
-    with open(args.rf_config) as fp:
-        rf_config = json.load(fp)
-    run.config.update(rf_config)
-
-    # Fix the random seed for the Random Forest, so we get reproducible results
-    rf_config['random_state'] = args.random_seed
-
-    ######################################
-    # Use run.use_artifact(...).file() to get the train and validation artifact (args.trainval_artifact)
-    # and save the returned path in train_local_path
-    trainval_local_path = # YOUR CODE HERE
-    ######################################
-
-    X = pd.read_csv(trainval_local_path)
-    y = X.pop("price")  # this removes the column "price" from X and puts it into y
-
-    logger.info(f"Minimum price: {y.min()}, Maximum price: {y.max()}")
-
-    X_train, X_val, y_train, y_val = train_test_split(
-        X, y, test_size=args.val_size, stratify=X[args.stratify_by], random_state=args.random_seed
-    )
-
-    logger.info("Preparing sklearn pipeline")
-
-    sk_pipe, processed_features = get_inference_pipeline(rf_config, args.max_tfidf_features)
-
-    # Then fit it to the X_train, y_train data
-    logger.info("Fitting")
-
-    ######################################
-    # Fit the pipeline sk_pipe by calling the .fit method on X_train and y_train
-    # YOUR CODE HERE
-    ######################################
-
-    # Compute r2 and MAE
-    logger.info("Scoring")
-    r_squared = sk_pipe.score(X_val, y_val)
-
-    y_pred = sk_pipe.predict(X_val)
-    mae = mean_absolute_error(y_val, y_pred)
-
-    logger.info(f"Score: {r_squared}")
-    logger.info(f"MAE: {mae}")
-
-    logger.info("Exporting model")
-
-    # Save model package in the MLFlow sklearn format
-    if os.path.exists("random_forest_dir"):
-        shutil.rmtree("random_forest_dir")
-
-    ######################################
-    # Save the sk_pipe pipeline as a mlflow.sklearn model in the directory "random_forest_dir"
-    # HINT: use mlflow.sklearn.save_model
-    # YOUR CODE HERE
-    ######################################
-
-    ######################################
-    # Upload the model we just exported to W&B
-    # HINT: use wandb.Artifact to create an artifact. Use args.output_artifact as artifact name, "model_export" as
-    # type, provide a description and add rf_config as metadata. Then, use the .add_dir method of the artifact instance
-    # you just created to add the "random_forest_dir" directory to the artifact, and finally use
-    # run.log_artifact to log the artifact to the run
-    # YOUR CODE HERE
-    ######################################
-
-    # Plot feature importance
-    fig_feat_imp = plot_feature_importance(sk_pipe, processed_features)
-
-    ######################################
-    # Here we save r_squared under the "r2" key
-    run.summary['r2'] = r_squared
-    # Now log the variable "mae" under the key "mae".
-    # YOUR CODE HERE
-    ######################################
-
-    # Upload to W&B the feture importance visualization
-    run.log(
-        {
-          "feature_importance": wandb.Image(fig_feat_imp),
-        }
-    )
+    root = Path(args.project_root).resolve()
+    with stage(root, args.run_dir, "train_random_forest", inputs={
+        "trainval": args.trainval, "split": args.split, "rf_config": args.rf_config,
+    }) as record:
+        split_path = resolve_path(root, args.split, must_exist=True)
+        split = load_split(root, split_path)
+        trainval = load_artifact(root, split["trainval"])
+        if trainval != resolve_path(root, args.trainval, must_exist=True):
+            raise ValueError("Training input does not match split metadata")
+        load_artifact(root, split["test"])
+        load_artifact(root, split["source"])
+        if not 0 < args.val_size < 1:
+            raise ValueError("val_size must be strictly between zero and one")
+        output_dir = run_output(root, args.run_dir, args.output_dir)
+        output_dir.mkdir(parents=True)
+        rf_config = read_json(resolve_path(root, args.rf_config, must_exist=True))
+        rf_config["random_state"] = args.random_seed
+        parameters = effective_parameters({
+            "random_forest": rf_config, "val_size": args.val_size,
+            "random_seed": args.random_seed, "stratify_by": args.stratify_by,
+            "max_tfidf_features": args.max_tfidf_features,
+        })
+        rf_config = parameters["random_forest"]
+        write_json(output_dir / "parameters.json", parameters)
+        X = pd.read_csv(trainval)
+        y = X.pop("price")
+        X_train, X_val, y_train, y_val = train_test_split(
+            X, y, test_size=args.val_size,
+            stratify=None if args.stratify_by == "none" else X[args.stratify_by],
+            random_state=args.random_seed,
+        )
+        client, experiment_id = configure_tracking(root)
+        # An explicit ID avoids accidentally resuming an outer project run.
+        mlflow_run = client.create_run(experiment_id)
+        with mlflow.start_run(run_id=mlflow_run.info.run_id):
+            mlflow.set_tags({"pipeline_run_id": Path(args.run_dir).name,
+                             "split_id": split["split_id"]})
+            logged_parameters = {**rf_config, **{
+                key: value for key, value in parameters.items() if key != "random_forest"
+            }}
+            mlflow.log_params(logged_parameters)
+            sk_pipe, processed_features = get_inference_pipeline(
+                rf_config, args.max_tfidf_features
+            )
+            fit_model(sk_pipe, X_train, y_train)
+            r_squared = float(sk_pipe.score(X_val, y_val))
+            mae = float(mean_absolute_error(y_val, sk_pipe.predict(X_val)))
+            if not np.isfinite([mae, r_squared]).all():
+                raise ValueError("Validation metrics must be finite")
+            model_dir = output_dir / "model"
+            export_model(sk_pipe, model_dir)
+            if not (model_dir / "MLmodel").is_file():
+                raise ValueError("Model export did not produce an MLflow model at model_dir")
+            log_validation_mae(mae)
+            mlflow.log_metric("r2", r_squared)
+            fig = plot_feature_importance(sk_pipe, processed_features)
+            fig.savefig(output_dir / "feature_importance.png")
+            plt.close(fig)
+            metrics = {"mae": mae, "r2": r_squared}
+            write_json(output_dir / "metrics.json", metrics)
+            for name in ("parameters.json", "metrics.json", "feature_importance.png"):
+                mlflow.log_artifact(str(output_dir / name))
+            mlflow.log_artifacts(str(model_dir), artifact_path="model")
+            record["outputs"] = {
+                "model": model_dir, "parameters": output_dir / "parameters.json",
+                "metrics": output_dir / "metrics.json",
+                "feature_importance": output_dir / "feature_importance.png",
+            }
+            record["details"] = {
+                "mlflow_run_id": mlflow_run.info.run_id, "split_id": split["split_id"],
+                "split": relative_path(root, split_path), "parameters": parameters,
+                "metrics": metrics,
+            }
 
 
 def plot_feature_importance(pipe, feat_names):
@@ -156,7 +196,7 @@ def get_inference_pipeline(rf_config, max_tfidf_features):
     # Build a pipeline with two steps:
     # 1 - A SimpleImputer(strategy="most_frequent") to impute missing values
     # 2 - A OneHotEncoder() step to encode the variable
-    non_ordinal_categorical_preproc = # YOUR CODE HERE
+    non_ordinal_categorical_preproc = categorical_preprocessor()
     ######################################
 
     # Let's impute the numerical columns to make sure we can handle missing values
@@ -223,64 +263,25 @@ def get_inference_pipeline(rf_config, max_tfidf_features):
     # ColumnTransformer instance that we saved in the `preprocessor` variable, and a step called "random_forest"
     # with the random forest instance that we just saved in the `random_forest` variable.
     # HINT: Use the explicit Pipeline constructor so you can assign the names to the steps, do not use make_pipeline
-    sk_pipe = # YOUR CODE HERE
+    sk_pipe = assemble_pipeline(preprocessor, random_forest)
 
     return sk_pipe, processed_features
 
 
+def build_parser():
+    parser = argparse.ArgumentParser(description="Train from a local, identified split")
+    parser.add_argument("--project_root", default=str(Path(__file__).resolve().parents[2]))
+    parser.add_argument("--run_dir", required=True)
+    parser.add_argument("--trainval", required=True)
+    parser.add_argument("--split", required=True)
+    parser.add_argument("--output_dir", required=True)
+    parser.add_argument("--rf_config", required=True)
+    parser.add_argument("--val_size", type=float, required=True)
+    parser.add_argument("--random_seed", type=int, default=42)
+    parser.add_argument("--stratify_by", default="none")
+    parser.add_argument("--max_tfidf_features", type=int, default=5)
+    return parser
+
+
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(description="Basic cleaning of dataset")
-
-    parser.add_argument(
-        "--trainval_artifact",
-        type=str,
-        help="Artifact containing the training dataset. It will be split into train and validation"
-    )
-
-    parser.add_argument(
-        "--val_size",
-        type=float,
-        help="Size of the validation split. Fraction of the dataset, or number of items",
-    )
-
-    parser.add_argument(
-        "--random_seed",
-        type=int,
-        help="Seed for random number generator",
-        default=42,
-        required=False,
-    )
-
-    parser.add_argument(
-        "--stratify_by",
-        type=str,
-        help="Column to use for stratification",
-        default="none",
-        required=False,
-    )
-
-    parser.add_argument(
-        "--rf_config",
-        help="Random forest configuration. A JSON dict that will be passed to the "
-        "scikit-learn constructor for RandomForestRegressor.",
-        default="{}",
-    )
-
-    parser.add_argument(
-        "--max_tfidf_features",
-        help="Maximum number of words to consider for the TFIDF",
-        default=10,
-        type=int
-    )
-
-    parser.add_argument(
-        "--output_artifact",
-        type=str,
-        help="Name for the output serialized model",
-        required=True,
-    )
-
-    args = parser.parse_args()
-
-    go(args)
+    go(build_parser().parse_args())

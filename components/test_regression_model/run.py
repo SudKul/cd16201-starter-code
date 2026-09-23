@@ -1,73 +1,61 @@
 #!/usr/bin/env python
-"""
-This step takes the best model, tagged with the "prod" tag, and tests it against the test dataset
-"""
+"""Evaluate an explicitly selected local model on its associated held-out data."""
 import argparse
-import logging
-import wandb
-import mlflow
+import os
+from pathlib import Path
+import sys
+
+os.environ["MLFLOW_DISABLE_TELEMETRY"] = "true"
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+import mlflow.sklearn
+import numpy as np
 import pandas as pd
-from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_absolute_error, r2_score
 
-from wandb_utils.log_artifact import log_artifact
-
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(message)s")
-logger = logging.getLogger()
+from components.compare_runs import load_selection
+from components.local_pipeline import load_artifact, run_output, stage, write_json
 
 
 def go(args):
+    root = Path(args.project_root).resolve()
+    with stage(root, args.run_dir, "test_regression_model", inputs={
+        "selection": args.selection,
+    }) as record:
+        selection = load_selection(root, args.selection)
+        model_path = load_artifact(root, selection["model"])
+        test_path = load_artifact(root, selection["test"])
+        output = run_output(root, args.run_dir, args.output)
+        X_test = pd.read_csv(test_path)
+        y_test = X_test.pop("price")
+        model = mlflow.sklearn.load_model(str(model_path))
+        prediction = model.predict(X_test)
+        metrics = {
+            "mae": float(mean_absolute_error(y_test, prediction)),
+            "r2": float(r2_score(y_test, prediction)),
+        }
+        if not np.isfinite(list(metrics.values())).all():
+            raise ValueError("Held-out metrics must be finite")
+        evidence = {
+            "schema_version": 1, "run_id": Path(args.run_dir).name,
+            "model_run_id": selection["run_id"], "model_path": selection["model"]["path"],
+            "split_id": selection["split_id"], "test": selection["test"], **metrics,
+        }
+        write_json(output, evidence)
+        record["outputs"] = {"metrics": output}
+        record["details"] = evidence
+        return evidence
 
-    run = wandb.init(job_type="test_model")
-    run.config.update(args)
 
-    logger.info("Downloading artifacts")
-    # Download input artifact. This will also log that this script is using this
-    # particular version of the artifact
-    model_local_path = run.use_artifact(args.mlflow_model).download()
-
-    # Download test dataset
-    test_dataset_path = run.use_artifact(args.test_dataset).file()
-
-    # Read test dataset
-    X_test = pd.read_csv(test_dataset_path)
-    y_test = X_test.pop("price")
-
-    logger.info("Loading model and performing inference on test set")
-    sk_pipe = mlflow.sklearn.load_model(model_local_path)
-    y_pred = sk_pipe.predict(X_test)
-
-    logger.info("Scoring")
-    r_squared = sk_pipe.score(X_test, y_test)
-
-    mae = mean_absolute_error(y_test, y_pred)
-
-    logger.info(f"Score: {r_squared}")
-    logger.info(f"MAE: {mae}")
-
-    # Log MAE and r2
-    run.summary['r2'] = r_squared
-    run.summary['mae'] = mae
+def build_parser():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--project_root", default=str(Path(__file__).resolve().parents[2]))
+    parser.add_argument("--run_dir", required=True)
+    parser.add_argument("--selection", required=True)
+    parser.add_argument("--output", required=True)
+    return parser
 
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(description="Test the provided model against the test dataset")
-
-    parser.add_argument(
-        "--mlflow_model",
-        type=str, 
-        help="Input MLFlow model",
-        required=True
-    )
-
-    parser.add_argument(
-        "--test_dataset",
-        type=str, 
-        help="Test dataset",
-        required=True
-    )
-
-    args = parser.parse_args()
-
-    go(args)
+    go(build_parser().parse_args())

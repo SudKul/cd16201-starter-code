@@ -6,9 +6,8 @@ entry_points:
     parameters:
 {% for arg_name in cookiecutter.parameters.split(",") %}
       {{arg_name}}:
-        description: ## ADD DESCRIPTION
+        description: Value for {{arg_name}}
         type: string
 {% endfor %}
-
     command: >-
-        python {{cookiecutter.script_name}} {% for n in cookiecutter.parameters.split(",") %} --{{n}} {{"{"}}{{n}}{{"}"}} {% endfor %}
+      python {{cookiecutter.script_name}} {% for n in cookiecutter.parameters.split(",") %} --{{n}} {{"{"}}{{n}}{{"}"}} {% endfor %}

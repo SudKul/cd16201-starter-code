@@ -1,25 +1,12 @@
-name: download_file
-conda_env: conda.yml
+name: get_data
 
 entry_points:
   main:
     parameters:
-
-      sample:
-        description: Name of sample to download
-        type: string
-
-      artifact_name:
-        description: Name for the output artifact
-        type: string
-
-      artifact_type:
-        description: Type of the output artifact. This will be used to categorize the artifact in the W&B
-                     interface
-        type: string
-
-      artifact_description:
-        description: A brief description of the output artifact
-        type: string
-
-    command: "python run.py {sample} {artifact_name} {artifact_type} {artifact_description}"
+      project_root: {type: string}
+      run_dir: {type: string}
+      sample: {type: string, description: Bundled sample1.csv or sample2.csv}
+      output: {type: string, description: New CSV output inside the run directory}
+    command: >-
+      python run.py --project_root "{project_root}" --run_dir "{run_dir}"
+      --sample "{sample}" --output "{output}"

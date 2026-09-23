@@ -1,13 +1,8 @@
-name: data_check
+name: nyc_airbnb_dev
 channels:
   - conda-forge
-  - defaults
 dependencies:
-  - python=3.13
-  - pandas=2.3.2
-  - pytest=8.4.2
-  - scipy=1.16.1
+  - python=3.12
   - pip=24.3.1
   - pip:
-      - mlflow==3.3.2
-      - wandb==0.21.3
+      - -r ../../requirements.txt
