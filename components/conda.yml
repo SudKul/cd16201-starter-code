@@ -1,6 +1,8 @@
-name: components
+name: nyc_airbnb_dev
 channels:
   - conda-forge
-  - defaults
 dependencies:
-  - mlflow=2.9.0
+  - python=3.12
+  - pip=24.3.1
+  - pip:
+      - -r ../requirements.txt
