@@ -1,13 +1,8 @@
-name: download_file
+name: nyc_airbnb_dev
 channels:
   - conda-forge
-  - defaults
 dependencies:
-  - python=3.13
+  - python=3.12
   - pip=24.3.1
-  - requests=2.24.0
-  - scikit-learn=1.7.2
   - pip:
-      - mlflow==3.3.2
-      - wandb==0.21.3
-      - -e ..
+      - -r ../../requirements.txt

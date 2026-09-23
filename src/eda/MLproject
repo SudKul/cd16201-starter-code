@@ -1,6 +1,4 @@
 name: eda
-conda_env: conda.yml
-
 entry_points:
   main:
-    command: jupyter-lab
+    command: jupyter-lab --notebook-dir ../..

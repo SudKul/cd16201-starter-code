@@ -1,17 +1,16 @@
-# Cookiecutter template for MLFlow steps
+# Optional Cookiecutter template for local MLflow steps
 
-Using this template you can quickly generate new steps to be used with MLFlow.
+The project already includes the required cleaning scaffold. Cookiecutter is only for
+adding another step. If you choose to use it, install the optional authoring tool
+before creating a step:
 
-# Usage
-Run the command:
-
+```sh
+python -m pip install cookiecutter==2.6.0
+cookiecutter cookie-mlflow-step -o src
 ```
-> cookiecutter [path to this repo] -o [destination directory]
-```
 
-and follow the prompt. The tool will ask for the step name, the script name, the description and so on. It will
-also ask for the parameters of the script. This should be a comma-separated list of parameter names *without spaces*. 
-After you are done, you will find a new directory with the provided step name containing a stub of a new MLflow step.
-
-You will need to edit both the script and the MLproject files to fill in the type and the help for the parameters.
-Of course, if your script needs packages, these should be added to the conda.yml file.
+Provide a step name, script name, description, and comma-separated parameter names
+without spaces. The generated script has an explicit TODO and accepts string
+parameters. Edit the script and `MLproject` parameter types for your step. Use
+project-local files for inputs and outputs, and run it with the preinstalled
+Workspace environment using `--env-manager=local`.

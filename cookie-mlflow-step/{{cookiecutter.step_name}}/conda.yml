@@ -1,10 +1,8 @@
 name: {{cookiecutter.step_name}}
 channels:
   - conda-forge
-  - defaults
 dependencies:
+  - python=3.12
   - pip=24.3.1
-  - python=3.13
   - pip:
       - mlflow==3.3.2
-      - wandb==0.21.3
