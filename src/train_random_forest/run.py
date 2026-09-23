@@ -4,8 +4,11 @@ This script trains a Random Forest
 """
 import argparse
 import logging
+import os
 import sys
 from pathlib import Path
+
+os.environ["MLFLOW_DISABLE_TELEMETRY"] = "true"
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import matplotlib.pyplot as plt

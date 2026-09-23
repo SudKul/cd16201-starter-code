@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 """Evaluate an explicitly selected local model on its associated held-out data."""
 import argparse
+import os
 from pathlib import Path
 import sys
+
+os.environ["MLFLOW_DISABLE_TELEMETRY"] = "true"
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 

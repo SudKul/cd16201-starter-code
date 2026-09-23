@@ -109,6 +109,7 @@ def run_version(project_root, version, sample):
         command = ['python', 'main.py', f'etl.sample={sample}']
         update_stage(root, audit, 'version_run', 'running')
         environment = os.environ.copy()
+        environment['MLFLOW_DISABLE_TELEMETRY'] = 'true'
         environment['MLFLOW_TRACKING_URI'] = 'sqlite:///' + str(checkout / 'artifacts/mlflow/mlflow.db')
         environment['MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING'] = 'false'
         (checkout / 'artifacts/mlflow').mkdir(parents=True, exist_ok=True)

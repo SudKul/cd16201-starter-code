@@ -26,15 +26,19 @@ Dependency installation can use network access during preparation; subsequent pi
 runs use the installed environment. `requirements.txt` is the canonical pinned set.
 The optional Conda files refer to that same set; Conda-based provisioning is not part
 of the verified setup. Run all commands below from the project root with this environment
-active. Initialize the local outer MLflow tracking context in each terminal:
+active. Before any MLflow command, configure local tracking and disable telemetry
+in each terminal, including terminals used for EDA or the optional UI:
 
 ```sh
+export MLFLOW_DISABLE_TELEMETRY=true
 mkdir -p artifacts/mlflow
 export MLFLOW_TRACKING_URI="sqlite:///$(pwd)/artifacts/mlflow/mlflow.db"
 export MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING=false
 ```
 
-Always pass `--env-manager=local` to `mlflow run`. Nested stage calls use the same
+MLflow reads the telemetry setting during import, before the outer CLI starts the
+pipeline. Repeat these exports in every new terminal. Always pass
+`--env-manager=local` to `mlflow run`. Nested stage calls use the same
 preinstalled environment. Runtime configuration is in `config.yaml`; supply overrides
 through `hydra_options`. Avoid changing package versions during the exercise.
 
@@ -43,7 +47,7 @@ through `hydra_options`. Avoid changing package versions during the exercise.
 Both datasets are provided under `components/get_data/data/`. Start Jupyter locally:
 
 ```sh
-mlflow run src/eda --env-manager=local
+MLFLOW_DISABLE_TELEMETRY=true mlflow run src/eda --env-manager=local
 ```
 
 Create and save `src/eda/eda.ipynb`. Examine `sample1.csv`, investigate its columns,
@@ -128,7 +132,7 @@ model belongs to the recorded run and uses its matching held-out dataset.
 An optional local UI can display the same tracking records:
 
 ```sh
-mlflow ui --backend-store-uri "$MLFLOW_TRACKING_URI" --host 127.0.0.1
+MLFLOW_DISABLE_TELEMETRY=true mlflow ui --backend-store-uri "$MLFLOW_TRACKING_URI" --host 127.0.0.1
 ```
 
 The UI is not required for grading. JSON, CSV, plots and manifests provide the evidence.
@@ -260,7 +264,8 @@ recreated but unrelated run artifacts are not silently substituted.
 absolute URI for `<project_root>/artifacts/mlflow/mlflow.db` (SQLite), and local
 file artifact storage at `<project_root>/artifacts/mlflow/artifacts/`. Never use
 ambient remote tracking settings. The outer invocation must resolve this same
-tracking context before starting MLflow; nested calls use `env_manager="local"`.
+tracking context and export `MLFLOW_DISABLE_TELEMETRY=true` before starting MLflow;
+nested calls inherit these settings and use `env_manager="local"`.
 Portable JSON/CSV and model files are grading evidence; the tracking database/UI
 is optional and is not relied on after relocation. Training logs effective forest
 parameters (including resolved estimator defaults), preprocessing/partition settings,
@@ -293,7 +298,8 @@ It never changes selection or reads test metrics for hyperparameter comparison.
 
 **Orchestration and partial runs.** Root MLproject keeps `steps` and
 `hydra_options`. Run with `mlflow run . --env-manager=local`; the outer local
-tracking URI is set by the documented launcher/setup before this command.
+tracking URI and telemetry opt-out are set by the documented shell setup before
+this command.
 `main.steps=all` orders download, cleaning, validation, splitting and training;
 held-out evaluation is explicit. Root `main.py` resolves paths from its own
 project root, creates a new run, writes `rf_config.json`, and passes absolute

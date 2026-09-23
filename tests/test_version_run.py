@@ -38,6 +38,7 @@ def mock_learner_entry(monkeypatch, expected_exit=0):
             assert (checkout / 'main.py').read_text() == subprocess.check_output(
                 ['git', '-C', str(checkout), 'show', f'{commit}:main.py'], text=True)
             assert kwargs['env']['MLFLOW_TRACKING_URI'].startswith('sqlite:///')
+            assert kwargs['env']['MLFLOW_DISABLE_TELEMETRY'] == 'true'
             pipeline_run = create_run(checkout, {'sample': command[2].split('=', 1)[1]})
             with stage(checkout, pipeline_run, 'generic_entry') as record:
                 output = pipeline_run / 'revision.txt'
