@@ -3,6 +3,9 @@ import os
 import sys
 from pathlib import Path
 
+# MLflow starts telemetry at import; this local pipeline does not contact it.
+os.environ['MLFLOW_DISABLE_TELEMETRY'] = 'true'
+
 import hydra
 import mlflow
 from omegaconf import DictConfig, OmegaConf
