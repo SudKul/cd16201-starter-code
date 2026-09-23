@@ -18,12 +18,16 @@ on Linux with Python 3.12 available, run from the project root:
 ```sh
 python3.12 -m venv .venv
 . .venv/bin/activate
-python -m pip install pip==24.3.1 -r requirements.txt
+python -m pip install --upgrade pip==26.2
+python -m pip install -r requirements.txt
 python -m pip check
 ```
 
 Dependency installation can use network access during preparation; subsequent pipeline
 runs use the installed environment. `requirements.txt` is the canonical pinned set.
+Optional `ydata-profiling` is omitted because its current release still imports
+`pkg_resources`, which is absent from the patched setuptools version. Use pandas
+and Matplotlib for EDA in this environment.
 The optional Conda files refer to that same set; Conda-based provisioning is not part
 of the verified setup. Run all commands below from the project root with this environment
 active. Before any MLflow command, configure local tracking and disable telemetry
@@ -53,8 +57,10 @@ MLFLOW_DISABLE_TELEMETRY=true mlflow run src/eda --env-manager=local
 Create and save `src/eda/eda.ipynb`. Examine `sample1.csv`, investigate its columns,
 price distribution, missing values and dates, and explain your cleaning decisions.
 Notebook paths should be relative to the project; from `src/eda/`, bundled data is at
-`../../components/get_data/data/sample1.csv`. Profiling tools are optional. Do not
+`../../components/get_data/data/sample1.csv`. Use pandas and Matplotlib for profiling. Do not
 store credentials or external download dependencies in the notebook.
+Open only notebooks and model artifacts from sources you trust; executing notebooks
+and loading serialized models can run code.
 
 Complete `src/basic_cleaning/run.py` for parameterized price/date cleaning. The
 scaffold supplies CSV reading/writing. Complete the row-count and price-range checks
@@ -132,7 +138,7 @@ model belongs to the recorded run and uses its matching held-out dataset.
 An optional local UI can display the same tracking records:
 
 ```sh
-MLFLOW_DISABLE_TELEMETRY=true mlflow ui --backend-store-uri "$MLFLOW_TRACKING_URI" --host 127.0.0.1
+MLFLOW_DISABLE_TELEMETRY=true MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false mlflow ui --backend-store-uri "$MLFLOW_TRACKING_URI" --host 127.0.0.1
 ```
 
 The UI is not required for grading. JSON, CSV, plots and manifests provide the evidence.
