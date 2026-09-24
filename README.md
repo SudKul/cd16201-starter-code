@@ -174,8 +174,20 @@ to another revision. Keep the fixed reference from the original sample.
 
 ## Prepare the submission
 
-Save the EDA notebook and retain the comparison, explicit selection, final evaluation,
-fixed reference and both versioned-run records. Create the reviewer archive:
+Workspace is the recommended submission route. Save your work in the project
+directory and use the course's Workspace submission option. This route does not
+require a ZIP, GitHub account, hosted repository, public URL or remote push.
+
+Every route requires the same grading evidence: source and configuration, bundled
+data, the saved EDA notebook, selected model, comparison, explicit selection, final
+evaluation, fixed reference, run manifests and both versioned-run records. Keep the
+local Git tags and `artifacts/versions/source.bundle` for version replay. Use the
+manifests and pipeline diagram to explain lineage; the tracking UI is optional.
+
+GitHub and ZIP are optional alternatives in the course submission options. If you
+choose GitHub, ensure reviewers can access the required evidence as well as source;
+`artifacts/` is ignored by Git, so pushing source alone does not include that evidence.
+If you choose ZIP, create the reviewer archive:
 
 ```sh
 python -m components.package_submission --project_root . --output submission.zip
@@ -188,7 +200,14 @@ MLflow database are excluded. Correct missing evidence before retrying a rejecte
 package. Inspect the archive and extract it into a new directory before submission;
 activate the same pinned environment and repeat the setup of the local tracking URI
 from that new root. Selection and held-out evaluation must resolve without original
-absolute paths or external services. Version replay can use the included Git bundle.
+absolute paths or external services. Version replay can use the included Git bundle
+from the extracted directory without a `.git` directory; keep local Git history in
+your working project.
+
+The files collected by Workspace and replay of its actual submitted payload still
+require verification in [#24](https://github.com/ruddyscent/cd16201-starter-code/issues/24).
+ZIP packaging checks do not establish Workspace collection behavior, including
+whether ignored files or local Git history are retained.
 
 Maintainers must never add or publish completed reference answers in this starter,
 its history, tests, attachments or release artifacts. Reference verification uses
