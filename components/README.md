@@ -18,6 +18,10 @@ run manifests and outputs are specified in the
 The `local_pipeline` module provides path/checksum and run-status helpers.
 `init_reference` creates the fixed baseline; `compare_runs` compares validation
 metrics and selects a model explicitly; `version_run` replays existing local tags;
-`package_submission` collects portable reviewer evidence. These modules run with
+`package_submission` creates the optional ZIP with portable reviewer evidence.
+Workspace is the recommended submission route and does not require a ZIP or GitHub
+account. All routes require the same grading evidence; see
+[submission guidance](../README.md#prepare-the-submission) for optional GitHub/ZIP
+routes and the pending Workspace collection verification. These modules run with
 `python -m components.<module>` from the project root. No package installation of
 this source tree or external tracking account is required.
