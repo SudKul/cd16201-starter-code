@@ -12,8 +12,58 @@ for paths, isolated runs, tracking, comparison and evaluation is supplied.
 
 ## Setup
 
-The Workspace should already have the pinned environment. For environment preparation
-on Linux with Python 3.12 available, run from the project root:
+### Udacity Workspace (recommended)
+
+The starter, both datasets and the pinned Python 3.12 environment are already
+provided. Normal Workspace use requires no fork, clone, venv or package installation.
+Open **Terminal > New Terminal** and use Bash. If an initially presented terminal
+reports `Run 'conda init' before 'conda activate'`, open a new Bash terminal and retry;
+do not reinstall packages or run `conda init` for this project.
+
+From the Workspace project root, activate the prepared environment and configure
+local tracking before any MLflow command:
+
+```sh
+cd /workspace/cd16201-starter-code
+conda activate cd16201
+export MLFLOW_DISABLE_TELEMETRY=true
+export MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING=false
+export MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false
+mkdir -p artifacts/mlflow
+export MLFLOW_TRACKING_URI="sqlite:///$(pwd)/artifacts/mlflow/mlflow.db"
+```
+
+The terminal's `python` should be `/opt/conda/envs/cd16201/bin/python`. In this
+Workspace, the tracking URI resolves to
+`sqlite:////workspace/cd16201-starter-code/artifacts/mlflow/mlflow.db`.
+Repeat the activation and four exports in each new terminal, including terminals
+used for EDA or the optional MLflow UI. MLflow reads the telemetry setting during
+import, before the outer CLI starts the pipeline.
+
+Check the supplied ingestion step before implementing the learner TODOs:
+
+```sh
+mlflow run . --env-manager=local -P steps=download
+```
+
+This reads the bundled `sample1.csv` and prints a new run directory under
+`artifacts/runs/`, containing `raw.csv` and `manifest.json`. Local tracking records
+are stored under `artifacts/mlflow/`. This smoke check verifies the supplied download
+step; it does not train a model or complete the learner implementation.
+
+For notebooks in the Workspace editor, select **Python (CD16201)**. The notebook's
+`sys.executable` should be `/opt/conda/envs/cd16201/bin/python`. The prepared course
+kernel supplies the same four MLflow settings; verify them before importing MLflow.
+Exports in a terminal do not change an already-running notebook kernel.
+
+Always pass `--env-manager=local` to `mlflow run`. Nested stage calls use the same
+preinstalled environment. Runtime configuration is in `config.yaml`; supply overrides
+through `hydra_options`. Avoid changing package versions during the exercise.
+
+### Optional local Linux environment preparation
+
+Use this section only when preparing your own environment outside the Udacity
+Workspace. With Python 3.12 installed, run from your local project root:
 
 ```sh
 python3.12 -m venv .venv
@@ -23,38 +73,33 @@ python -m pip install -r requirements.txt
 python -m pip check
 ```
 
+Then run the four exports and the `mkdir` command from the Workspace setup above
+from your own project root, followed by the same download smoke command. Keep your
+local environment active instead of using the Workspace-specific Conda activation.
+Select this environment's interpreter for local notebooks and set the same MLflow
+variables in the kernel before importing MLflow.
+
 Dependency installation can use network access during preparation; subsequent pipeline
 runs use the installed environment. `requirements.txt` is the canonical pinned set.
 Optional `ydata-profiling` is omitted because its current release still imports
 `pkg_resources`, which is absent from the patched setuptools version. Use pandas
 and Matplotlib for EDA in this environment.
-The optional Conda files refer to that same set; Conda-based provisioning is not part
-of the verified setup. Run all commands below from the project root with this environment
-active. Before any MLflow command, configure local tracking and disable telemetry
-in each terminal, including terminals used for EDA or the optional UI:
-
-```sh
-export MLFLOW_DISABLE_TELEMETRY=true
-mkdir -p artifacts/mlflow
-export MLFLOW_TRACKING_URI="sqlite:///$(pwd)/artifacts/mlflow/mlflow.db"
-export MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING=false
-```
-
-MLflow reads the telemetry setting during import, before the outer CLI starts the
-pipeline. Repeat these exports in every new terminal. Always pass
-`--env-manager=local` to `mlflow run`. Nested stage calls use the same
-preinstalled environment. Runtime configuration is in `config.yaml`; supply overrides
-through `hydra_options`. Avoid changing package versions during the exercise.
+The prepared Workspace Conda environment has been verified. The optional Conda files
+refer to the same pinned set, but their provisioning recipe has not been validated.
 
 ## Explore and implement
 
-Both datasets are provided under `components/get_data/data/`. Start Jupyter locally:
+Both datasets are provided under `components/get_data/data/`. In the Workspace
+editor, create and save `src/eda/eda.ipynb` using **Python (CD16201)** as described
+above. Alternatively, with your environment active and all four MLflow variables
+set, start JupyterLab from the project root:
 
 ```sh
-MLFLOW_DISABLE_TELEMETRY=true mlflow run src/eda --env-manager=local
+mlflow run src/eda --env-manager=local
 ```
 
-Create and save `src/eda/eda.ipynb`. Examine `sample1.csv`, investigate its columns,
+Use the intended environment's notebook kernel and save `src/eda/eda.ipynb`.
+Examine `sample1.csv`, investigate its columns,
 price distribution, missing values and dates, and explain your cleaning decisions.
 Notebook paths should be relative to the project; from `src/eda/`, bundled data is at
 `../../components/get_data/data/sample1.csv`. Use pandas and Matplotlib for profiling. Do not
