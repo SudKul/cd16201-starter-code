@@ -6,8 +6,16 @@ Normal execution uses bundled data and project-local files.
 
 Before starting any MLflow CLI, follow the root README shell setup: export
 `MLFLOW_DISABLE_TELEMETRY=true` and the project-local `MLFLOW_TRACKING_URI`. Repeat
-this in each new terminal, including EDA and optional UI terminals, because MLflow
-initializes telemetry during import.
+this in each new terminal, including terminals used for EDA and the required UI
+activity, because MLflow initializes telemetry during import.
+
+Complete the [required local MLflow UI activity](../README.md#inspect-the-runs-in-the-local-mlflow-ui-required)
+using the same tracking store as training. The root README covers Workspace
+**Preview in Editor**, exact host/origin settings and local-machine access.
+Inspect three training runs, compare validation metrics and parameters, and view
+the feature-importance artifact. Explicit local selection and held-out evaluation
+remain separate; portable files and manifests are review evidence, and the
+tracking database remains optional for submission.
 
 Run the root project with `mlflow run . --env-manager=local`. Components use the
 same environment; their MLproject parameter names match their Python CLI options.

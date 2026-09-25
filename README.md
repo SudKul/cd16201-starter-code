@@ -37,8 +37,8 @@ The terminal's `python` should be `/opt/conda/envs/cd16201/bin/python`. In this
 Workspace, the tracking URI resolves to
 `sqlite:////workspace/cd16201-starter-code/artifacts/mlflow/mlflow.db`.
 Repeat the activation and four exports in each new terminal, including terminals
-used for EDA or the optional MLflow UI. MLflow reads the telemetry setting during
-import, before the outer CLI starts the pipeline.
+used for EDA or the required MLflow UI activity. MLflow reads the telemetry setting
+during import, before the outer CLI starts the pipeline.
 
 Check the supplied ingestion step before implementing the learner TODOs:
 
@@ -162,8 +162,72 @@ mlflow run . --env-manager=local -P steps=train_random_forest -P hydra_options="
 mlflow run . --env-manager=local -P steps=train_random_forest -P hydra_options="main.source_run=$S modeling.random_forest.n_estimators=150"
 ```
 
-Set `A`, `B` and `C` to these three printed run directories. Compare validation
-metrics, then explicitly select the minimum validation MAE:
+### Inspect the runs in the local MLflow UI (required)
+
+Use the MLflow UI to inspect and compare your three completed training runs before
+selecting a model. It reads the same project-local tracking store as training; no
+external account or hosted tracking service is required.
+
+In the **Udacity Workspace**, prepare the embedded preview first:
+
+1. Open the editor's **Ports** panel, choose **Forward a Port**, and enter `5000`.
+2. Copy only the hostname from that row's **Forwarded Address**: the part after
+   `https://` and before the next `/`. Do not include the protocol or
+   `/proxy/5000/` path. Each Workspace has its own hostname.
+3. Open a second Bash terminal. Replace `your-workspace-hostname` below with the
+   hostname you copied, then run:
+
+```sh
+cd /workspace/cd16201-starter-code
+conda activate cd16201
+export MLFLOW_DISABLE_TELEMETRY=true
+export MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING=false
+export MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false
+mkdir -p artifacts/mlflow
+export MLFLOW_TRACKING_URI="sqlite:///$(pwd)/artifacts/mlflow/mlflow.db"
+WORKSPACE_HOST="your-workspace-hostname"
+python -m mlflow ui --backend-store-uri "$MLFLOW_TRACKING_URI" --host 127.0.0.1 --port 5000 --allowed-hosts "$WORKSPACE_HOST,127.0.0.1:5000,localhost:5000" --cors-allowed-origins "https://$WORKSPACE_HOST"
+```
+
+Keep the terminal running and wait for server startup to complete. Right-click
+the port `5000` row and choose **Preview in Editor**. This opens MLflow in the
+Workspace's embedded **Simple Browser**, inside the course page. If the preview
+opened before startup finished, refresh it. If MLflow reports an invalid Host
+header, check the copied hostname, stop the server with **Ctrl+C**, and rerun the
+command with the corrected value. Keep the host and origin lists specific to your
+Workspace and the listed loopback addresses.
+
+Outside the Workspace, use your prepared local environment in a second terminal
+at the same project root and repeat the four tracking exports from setup. Start
+the UI with:
+
+```sh
+python -m mlflow ui --backend-store-uri "$MLFLOW_TRACKING_URI" --host 127.0.0.1 --port 5000
+```
+
+Open `http://127.0.0.1:5000` in a browser on that same machine. The Workspace
+hostname and preview options above apply only to the Workspace route.
+
+In MLflow, open **Model training → Experiments → nyc_airbnb → Runs**:
+
+1. Select the checkboxes for your three training runs and choose **Compare**.
+   Compare their hyperparameters and validation `mae` and `r2`. Confirm matching
+   `split_id`, `val_size`, `random_seed` and `stratify_by` values.
+2. Open a training run, choose **Artifacts**, and select **feature_importance.png**.
+   Inspect the rendered plot and explain which features contribute most to the
+   model. Match it to that run's local `training/feature_importance.png`.
+
+The UI's `pipeline_run_id` tag identifies `artifacts/runs/<run_id>/`. That run's
+manifest records the corresponding MLflow ID at
+`stages.train_random_forest.details.mlflow_run_id`; the two IDs are different.
+Check the manifest's exact split metadata path as well as the split ID, because
+comparison requires the same split artifact and validation partition. Use these
+links to distinguish training records from outer MLflow project runs.
+
+### Compare, select and evaluate
+
+Set `A`, `B` and `C` to the three printed pipeline run directories. Compare
+validation metrics, then explicitly select the minimum validation MAE:
 
 ```sh
 A=artifacts/runs/<first-training-run-id>
@@ -175,18 +239,16 @@ mlflow run . --env-manager=local -P steps=test_regression_model
 ```
 
 Inspect `artifacts/comparison.csv`, `artifacts/selected_model.json`, the selected
-run's `training/` files and the evaluation run's `evaluation/metrics.json`. Test data
-is reserved for this final evaluation and cannot determine model selection. New
+run's `training/` files and the evaluation run's `evaluation/metrics.json`. Match
+the comparison's pipeline run IDs, parameters and validation metrics to the UI
+records and each run's `training/parameters.json` and `training/metrics.json`. Test
+data is reserved for this final evaluation and cannot determine model selection. New
 training runs leave the selection unchanged. The evaluator verifies the selected
 model belongs to the recorded run and uses its matching held-out dataset.
 
-An optional local UI can display the same tracking records:
-
-```sh
-MLFLOW_DISABLE_TELEMETRY=true MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false mlflow ui --backend-store-uri "$MLFLOW_TRACKING_URI" --host 127.0.0.1
-```
-
-The UI is not required for grading. JSON, CSV, plots and manifests provide the evidence.
+UI inspection is required learning work. It does not change the explicit local
+selection or replace JSON, CSV, plots, model files and manifests as review evidence.
+The tracking database does not need to be submitted or relied on after relocation.
 
 ## Local versions and new data
 
@@ -227,7 +289,8 @@ Every route requires the same grading evidence: source and configuration, bundle
 data, the saved EDA notebook, selected model, comparison, explicit selection, final
 evaluation, fixed reference, run manifests and both versioned-run records. Keep the
 local Git tags and `artifacts/versions/source.bundle` for version replay. Use the
-manifests and pipeline diagram to explain lineage; the tracking UI is optional.
+manifests and pipeline diagram to explain lineage. Complete the required local
+MLflow UI activity; submit the portable evidence rather than a hosted dashboard.
 
 GitHub and ZIP are optional alternatives in the course submission options. If you
 choose GitHub, ensure reviewers can access the required evidence as well as source;
@@ -336,9 +399,10 @@ file artifact storage at `<project_root>/artifacts/mlflow/artifacts/`. Never use
 ambient remote tracking settings. The outer invocation must resolve this same
 tracking context and export `MLFLOW_DISABLE_TELEMETRY=true` before starting MLflow;
 nested calls inherit these settings and use `env_manager="local"`.
-Portable JSON/CSV and model files are grading evidence; the tracking database/UI
-is optional and is not relied on after relocation. Training logs effective forest
-parameters (including resolved estimator defaults), preprocessing/partition settings,
+Local MLflow UI inspection is a required learning activity. Portable JSON/CSV,
+plots, model files and manifests remain grading evidence; the tracking database
+is optional for submission and is not relied on after relocation. Training logs
+effective forest parameters (including resolved estimator defaults), preprocessing/partition settings,
 validation `mae` and `r2`, and the
 feature-importance image to one local MLflow run. Its manifest details link
 `mlflow_run_id`, `split_id`, `split` (relative metadata path), `parameters`, and
